@@ -1,9 +1,7 @@
 export default {
   async fetch(request, env, ctx) {
-    const apiUrl =
-      "https://clientapi.gcs-web.com/data/68ee6c33-8db5-45c4-8216-3dc41f586d9b/quotes";
 
-    // Handle preflight OPTIONS request
+    // --- Handle CORS Preflight Request ---
     if (request.method === "OPTIONS") {
       return new Response(null, {
         headers: {
@@ -15,25 +13,46 @@ export default {
       });
     }
 
+    const apiUrl =
+      "https://clientapi.gcs-web.com/data/68ee6c33-8db5-45c4-8216-3dc41f586d9b/quotes";
+
     try {
+      // Fetch upstream API
       const res = await fetch(apiUrl);
+      const json = await res.json();
 
-      const data = await res.json();
+      // Extract ABBV entry
+      const abbv = json?.data?.find((x) => x.symbol === "ABBV");
 
-      return new Response(JSON.stringify(data), {
+      // Build filtered response
+      const output = {
+        symbol: abbv?.symbol || "ABBV",
+        price: abbv?.lastTrade || null,
+        change: abbv?.changeNumber || null,
+        changePercent: abbv?.changePercent || null,
+        previousClose: abbv?.previousClose || null,
+        timestamp: abbv?.date || null,
+      };
+
+      return new Response(JSON.stringify(output), {
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",     
-          "Access-Control-Allow-Methods": "GET",  
+          "Access-Control-Allow-Origin": "*", // IMPORTANT FOR CORS
+          "Access-Control-Allow-Methods": "GET,OPTIONS",
         },
       });
+
     } catch (err) {
-      return new Response(JSON.stringify({ error: err.message }), {
-        status: 500,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-        },
-      });
+      return new Response(
+        JSON.stringify({ error: err.message }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
     }
   },
 };
